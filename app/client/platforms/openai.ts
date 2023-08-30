@@ -126,18 +126,21 @@ export class ChatGPTApi implements LLMApi {
     let bearer = this.getBearer();
     console.log(bearer);
     let headers = {
-      'User-Agent': 'Chat GPT Android 2.8.3 290',
-      'Authorization': bearer,
+      // 'User-Agent': 'Chat GPT Android 2.8.3 290',
+      // 'Authorization': bearer,
       'Content-Type': 'application/json',
     };
 
     try {
       // const chatPath = this.path(OpenaiPath.ChatPath);
       // const chatPath = "https://chatgpt.vulcanlabs.co/api/v3/chat"
-      const chatPath = "https://webchat3.zeabur.app/chat"
+      // const chatPath = "https://webchat3.zeabur.app/chat"
+      const chatPath = "http://42.192.142.48:3000/chat"
+      // const chatPath = "http://101.35.193.173/bim5d-tech/api/message"
       const chatPayload = {
         method: "POST",
         body: JSON.stringify(requestPayload),
+        // body: messages,
         // signal: controller.signal,
         // headers: headers,
       };
@@ -234,7 +237,7 @@ export class ChatGPTApi implements LLMApi {
       // clearTimeout(requestTimeoutId);
 
 
-      let res = await axios.post(chatPath, chatPayload, { headers })
+      let res = await axios.post(chatPath, requestPayload, { headers })
       const message = this.extractMessage(res);
       options.onFinish(message);
       // }

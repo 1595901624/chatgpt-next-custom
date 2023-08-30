@@ -77,7 +77,7 @@ export class ClientApi {
     this.llm = new ChatGPTApi();
   }
 
-  config() {}
+  connfig() {}
 
   prompts() {}
 

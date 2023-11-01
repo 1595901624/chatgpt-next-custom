@@ -14,6 +14,7 @@ import {
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "@/app/utils/format";
 import { getClientConfig } from "@/app/config/client";
+import axios from "axios";
 
 export interface OpenAIListModelResponse {
   object: string;
@@ -176,15 +177,22 @@ export class ChatGPTApi implements LLMApi {
           openWhenHidden: true,
         });
       } else {
+        let url = "http://42.192.142.48:5000/api/openai/v1/chat/completions";
         // const res = await fetch(chatPath, chatPayload);
-        const res = await fetch(
-          "http://42.192.142.48:5000/api/openai/v1/chat/completions",
-          chatPayload,
-        );
+        // const res = await fetch(
+        //   url,
+        //   chatPayload,
+        // );
+        fetch(url);
+
+        const res = await axios.post(url, chatPayload, {
+          headers: getHeaders(),
+        });
+
         console.log("[proxy]:" + JSON.stringify(res));
         clearTimeout(requestTimeoutId);
 
-        const resJson = await res.json();
+        const resJson = await res.data.json();
         const message = this.extractMessage(resJson);
         options.onFinish(message);
       }

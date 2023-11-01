@@ -77,7 +77,7 @@ export class ClientApi {
     this.llm = new ChatGPTApi();
   }
 
-  connfig() {}
+  config() {}
 
   prompts() {}
 
@@ -129,23 +129,24 @@ export function getHeaders() {
   const accessStore = useAccessStore.getState();
   let headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-requested-with": "XMLHttpRequest",
+    // "x-requested-with": "XMLHttpRequest",
+    'Access-Control-Allow-Origin': '*'
   };
 
   const makeBearer = (token: string) => `Bearer ${token.trim()}`;
   const validString = (x: string) => x && x.length > 0;
 
   // use user's api key first
-  if (validString(accessStore.token)) {
-    headers.Authorization = makeBearer(accessStore.token);
-  } else if (
-    accessStore.enabledAccessControl() &&
-    validString(accessStore.accessCode)
-  ) {
-    headers.Authorization = makeBearer(
-      ACCESS_CODE_PREFIX + accessStore.accessCode,
-    );
-  }
+  // if (validString(accessStore.token)) {
+  //   headers.Authorization = makeBearer(accessStore.token);
+  // } else if (
+  //   accessStore.enabledAccessControl() &&
+  //   validString(accessStore.accessCode)
+  // ) {
+  //   headers.Authorization = makeBearer(
+  //     ACCESS_CODE_PREFIX + accessStore.accessCode,
+  //   );
+  // }
 
   return headers;
 }

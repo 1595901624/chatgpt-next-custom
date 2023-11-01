@@ -14,10 +14,6 @@ import {
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "@/app/utils/format";
 import { getClientConfig } from "@/app/config/client";
-import axios from "axios";
-
-const crypto = require('crypto');
-const Base64 = require('js-base64').Base64;
 
 export interface OpenAIListModelResponse {
   object: string;
@@ -49,48 +45,8 @@ export class ChatGPTApi implements LLMApi {
   }
 
   extractMessage(res: any) {
-    return res.data.choices?.at(0)?.Message?.content ?? "";
+    return res.choices?.at(0)?.message?.content ?? "";
   }
-
-  encode(json: any) {
-    const buffer = Buffer.from(json, 'utf-8');
-    return Base64.encode(buffer, true);
-  }
-
-  hmacSHA256(data: any, key: any) {
-    try {
-      const hmac = crypto.createHmac('sha256', key);
-      hmac.update(data);
-      const result = hmac.digest();
-      return Base64.encode(result, true);
-    } catch (error) {
-      console.error(error);
-      return null;
-    }
-  }
-
-  getToken(secret: any, token: any, exp: any) {
-    const algoJson = this.encode('{"alg":"HS256","typ":"JWT"}');
-    const json = `{"token":"${token}","exp":${exp}}`;
-    const hmac = this.hmacSHA256(algoJson + '.' + this.encode(json), secret);
-    return `${algoJson}.${this.encode(json)}.${hmac}`;
-  }
-
-  getBearer() {
-    let secret = "vulcan@v4-chatgpt";
-    let token = "admin";
-    let timeExp = 5;
-
-    let calendar = new Date();
-    calendar.setMinutes(calendar.getMinutes() + timeExp);
-
-    let exp = Math.floor(calendar.getTime() / 1000);
-
-    let result = this.getToken(secret, token, exp);
-    let barear = `Bearer ${result}`;
-    return barear;
-  }
-
 
   async chat(options: ChatOptions) {
     const messages = options.messages.map((v) => ({
@@ -108,41 +64,28 @@ export class ChatGPTApi implements LLMApi {
 
     const requestPayload = {
       messages,
-      // stream: options.config.stream,
+      stream: options.config.stream,
       model: modelConfig.model,
-      // temperature: modelConfig.temperature,
-      // presence_penalty: modelConfig.presence_penalty,
-      // frequency_penalty: modelConfig.frequency_penalty,
-      // top_p: modelConfig.top_p,
-      user: "7D96FBBAA43F2QQA",
-      "nsfw_check": true
+      temperature: modelConfig.temperature,
+      presence_penalty: modelConfig.presence_penalty,
+      frequency_penalty: modelConfig.frequency_penalty,
+      top_p: modelConfig.top_p,
     };
 
     console.log("[Request] openai payload: ", requestPayload);
 
     // const shouldStream = !!options.config.stream;
+    const shouldStream = false;
     const controller = new AbortController();
     options.onController?.(controller);
-    let bearer = this.getBearer();
-    console.log(bearer);
-    let headers = {
-      // 'User-Agent': 'Chat GPT Android 2.8.3 290',
-      // 'Authorization': bearer,
-      'Content-Type': 'application/json',
-    };
 
     try {
-      // const chatPath = this.path(OpenaiPath.ChatPath);
-      // const chatPath = "https://chatgpt.vulcanlabs.co/api/v3/chat"
-      // const chatPath = "https://webchat3.zeabur.app/chat"
-      const chatPath = "http://42.192.142.48:3000/chat"
-      // const chatPath = "http://101.35.193.173/bim5d-tech/api/message"
+      const chatPath = this.path(OpenaiPath.ChatPath);
       const chatPayload = {
         method: "POST",
         body: JSON.stringify(requestPayload),
-        // body: messages,
         // signal: controller.signal,
-        // headers: headers,
+        headers: getHeaders(),
       };
 
       // make a fetch request
@@ -150,97 +93,94 @@ export class ChatGPTApi implements LLMApi {
         () => controller.abort(),
         REQUEST_TIMEOUT_MS,
       );
+      if (shouldStream) {
+        let responseText = "";
+        let finished = false;
 
-      // if (shouldStream) {
-      //   let responseText = "";
-      //   let finished = false;
+        const finish = () => {
+          if (!finished) {
+            options.onFinish(responseText);
+            finished = true;
+          }
+        };
 
-      //   const finish = () => {
-      //     if (!finished) {
-      //       options.onFinish(responseText);
-      //       finished = true;
-      //     }
-      //   };
+        controller.signal.onabort = finish;
 
-      //   controller.signal.onabort = finish;
+        fetchEventSource(chatPath, {
+          ...chatPayload,
+          async onopen(res) {
+            clearTimeout(requestTimeoutId);
+            const contentType = res.headers.get("content-type");
+            console.log(
+              "[OpenAI] request response content type: ",
+              contentType,
+            );
 
-      //   fetchEventSource(chatPath, {
-      //     ...chatPayload,
-      //     async onopen(res) {
-      //       clearTimeout(requestTimeoutId);
-      //       const contentType = res.headers.get("content-type");
-      //       console.log(
-      //         "[OpenAI] request response content type: ",
-      //         contentType,
-      //       );
+            if (contentType?.startsWith("text/plain")) {
+              responseText = await res.clone().text();
+              return finish();
+            }
 
-      //       if (contentType?.startsWith("text/plain")) {
-      //         responseText = await res.clone().text();
-      //         return finish();
-      //       }
+            if (
+              !res.ok ||
+              !res.headers
+                .get("content-type")
+                ?.startsWith(EventStreamContentType) ||
+              res.status !== 200
+            ) {
+              const responseTexts = [responseText];
+              let extraInfo = await res.clone().text();
+              try {
+                const resJson = await res.clone().json();
+                extraInfo = prettyObject(resJson);
+              } catch {}
 
-      //       if (
-      //         !res.ok ||
-      //         !res.headers
-      //           .get("content-type")
-      //           ?.startsWith(EventStreamContentType) ||
-      //         res.status !== 200
-      //       ) {
-      //         const responseTexts = [responseText];
-      //         let extraInfo = await res.clone().text();
-      //         try {
-      //           const resJson = await res.clone().json();
-      //           extraInfo = prettyObject(resJson);
-      //         } catch { }
+              if (res.status === 401) {
+                responseTexts.push(Locale.Error.Unauthorized);
+              }
 
-      //         if (res.status === 401) {
-      //           responseTexts.push(Locale.Error.Unauthorized);
-      //         }
+              if (extraInfo) {
+                responseTexts.push(extraInfo);
+              }
 
-      //         if (extraInfo) {
-      //           responseTexts.push(extraInfo);
-      //         }
+              responseText = responseTexts.join("\n\n");
 
-      //         responseText = responseTexts.join("\n\n");
+              return finish();
+            }
+          },
+          onmessage(msg) {
+            if (msg.data === "[DONE]" || finished) {
+              return finish();
+            }
+            const text = msg.data;
+            try {
+              const json = JSON.parse(text);
+              const delta = json.choices[0].delta.content;
+              if (delta) {
+                responseText += delta;
+                options.onUpdate?.(responseText, delta);
+              }
+            } catch (e) {
+              console.error("[Request] parse error", text, msg);
+            }
+          },
+          onclose() {
+            finish();
+          },
+          onerror(e) {
+            options.onError?.(e);
+            throw e;
+          },
+          openWhenHidden: true,
+        });
+      } else {
+        const res = await fetch(chatPath, chatPayload);
+        clearTimeout(requestTimeoutId);
 
-      //         return finish();
-      //       }
-      //     },
-      //     onmessage(msg) {
-      //       if (msg.data === "[DONE]" || finished) {
-      //         return finish();
-      //       }
-      //       const text = msg.data;
-      //       try {
-      //         const json = JSON.parse(text);
-      //         const delta = json.choices[0].delta.content;
-      //         if (delta) {
-      //           responseText += delta;
-      //           options.onUpdate?.(responseText, delta);
-      //         }
-      //       } catch (e) {
-      //         console.error("[Request] parse error", text, msg);
-      //       }
-      //     },
-      //     onclose() {
-      //       finish();
-      //     },
-      //     onerror(e) {
-      //       options.onError?.(e);
-      //       throw e;
-      //     },
-      //     openWhenHidden: true,
-      //   });
-      // } else {
-      // const res = await fetch(chatPath, chatPayload);
-      // console.log("res => " + res);
-      // clearTimeout(requestTimeoutId);
-
-
-      let res = await axios.post(chatPath, requestPayload, { headers })
-      const message = this.extractMessage(res);
-      options.onFinish(message);
-      // }
+        const resJson = await res.json();
+        const message = this.extractMessage(resJson);
+        options.onFinish(message);
+      }
     } catch (e) {
       console.log("[Request] failed to make a chat request", e);
       options.onError?.(e as Error);
@@ -337,7 +277,5 @@ export class ChatGPTApi implements LLMApi {
       available: true,
     }));
   }
-
-
 }
 export { OpenaiPath };

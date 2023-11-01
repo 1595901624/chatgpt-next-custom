@@ -189,7 +189,9 @@ export class ChatGPTApi implements LLMApi {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
         };
-        const res = await axios.post(url, chatPayload, { headers });
+        const res = await axios.post(url, JSON.stringify(chatPayload), {
+          headers,
+        });
 
         console.log("[proxy]:" + JSON.stringify(res));
         clearTimeout(requestTimeoutId);

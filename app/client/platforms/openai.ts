@@ -174,7 +174,11 @@ export class ChatGPTApi implements LLMApi {
           openWhenHidden: true,
         });
       } else {
-        const res = await fetch(chatPath, chatPayload);
+        // const res = await fetch(chatPath, chatPayload);
+        const res = await fetch(
+          "http://42.192.142.48:5000/api/openai/v1/chat/completions",
+          chatPayload,
+        );
         clearTimeout(requestTimeoutId);
 
         const resJson = await res.json();

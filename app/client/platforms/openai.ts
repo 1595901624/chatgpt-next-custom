@@ -179,6 +179,7 @@ export class ChatGPTApi implements LLMApi {
           "http://42.192.142.48:5000/api/openai/v1/chat/completions",
           chatPayload,
         );
+        console.log("[proxy]:" + res);
         clearTimeout(requestTimeoutId);
 
         const resJson = await res.json();

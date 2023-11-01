@@ -70,6 +70,8 @@ export class ChatGPTApi implements LLMApi {
       presence_penalty: modelConfig.presence_penalty,
       frequency_penalty: modelConfig.frequency_penalty,
       top_p: modelConfig.top_p,
+      user: "AADFGHWWERTYYUU",
+      nsfw_check: true,
     };
 
     console.log("[Request] openai payload: ", requestPayload);

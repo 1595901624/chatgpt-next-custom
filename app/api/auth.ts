@@ -60,6 +60,6 @@ export function auth(req: NextRequest) {
   // }
 
   return {
-    error: true,
+    error: false,
   };
 }

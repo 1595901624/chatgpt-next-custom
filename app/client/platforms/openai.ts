@@ -177,26 +177,26 @@ export class ChatGPTApi implements LLMApi {
           openWhenHidden: true,
         });
       } else {
-        let url = "http://42.192.142.48:5000/api/openai/v1/chat/completions";
-        // const res = await fetch(chatPath, chatPayload);
+        // let url = "http://42.192.142.48:5000/api/openai/v1/chat/completions";
+        const res = await fetch(chatPath, chatPayload);
         // const res = await fetch(
         //   url,
         //   chatPayload,
         // );
-        fetch(url);
+        // fetch(url);
 
-        let headers = {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        };
-        const res = await axios.post(url, JSON.stringify(chatPayload), {
-          headers,
-        });
+        // let headers = {
+        //   "Content-Type": "application/json",
+        //   "Access-Control-Allow-Origin": "*",
+        // };
+        // const res = await axios.post(url, JSON.stringify(chatPayload), {
+        //   headers,
+        // });
 
         console.log("[proxy]:" + JSON.stringify(res));
         clearTimeout(requestTimeoutId);
 
-        const resJson = await res.data.json();
+        const resJson = await res.json();
         const message = this.extractMessage(resJson);
         options.onFinish(message);
       }
